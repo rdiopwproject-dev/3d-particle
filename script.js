@@ -2,16 +2,15 @@
 // 1. SETUP LINGKUNGAN 3D & PENCAHAYAAN
 // ==========================================
 const scene = new THREE.Scene();
-// Mundur sedikit agar Saturnus terlihat penuh dan nyaman dipandang
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 120; 
+camera.position.z = 130; // Mundur sedikit lagi untuk bentuk Adam yang lebar
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio); 
 document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-// Pencahayaan untuk efek reflektif
+// Pencahayaan
 const ambientLight = new THREE.AmbientLight(0x404040, 2); 
 scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
@@ -24,13 +23,10 @@ scene.add(camera);
 // ==========================================
 // 2. SETUP INSTANCED MESH (PARTIKEL DEBU)
 // ==========================================
-const particleCount = 10000; 
-// Ukuran kecil (0.12) untuk efek debu
+const particleCount = 12000; // Sedikit ditambah untuk detail bentuk baru
 const geometry = new THREE.SphereGeometry(0.12, 6, 6); 
 const material = new THREE.MeshPhongMaterial({
-    color: 0xffffff,
-    shininess: 150, 
-    specular: 0xffffff 
+    color: 0xffffff, shininess: 150, specular: 0xffffff 
 });
 
 const instancedMesh = new THREE.InstancedMesh(geometry, material, particleCount);
@@ -49,11 +45,13 @@ instancedMesh.instanceColor.needsUpdate = true;
 scene.add(instancedMesh);
 
 // ==========================================
-// 3. PRE-KALKULASI BENTUK (MORPH TARGETS)
+// 3. PRE-KALKULASI BENTUK (MORPH TARGETS BARU)
 // ==========================================
-const targets = { saturn: [], scatter: [], heart: [], moon: [], jellyfish: [], text: [], fist: [] };
+// Hapus 'moon', tambah 'cat' dan 'adam'
+const targets = { saturn: [], scatter: [], heart: [], cat: [], jellyfish: [], text: [], fist: [], adam: [] };
 const currentPositions = [];
 
+// Helper Text
 function generateTextPoints(text) {
     const canvas = document.createElement('canvas');
     canvas.width = 800; canvas.height = 200;
@@ -76,168 +74,172 @@ const textPoints = generateTextPoints("I MISS YOU");
 
 for (let i = 0; i < particleCount; i++) {
     const u = Math.random(); const v = Math.random();
+    const idx = i;
     
-    // SATURNUS (Bentuk Dasar)
-    if (i < particleCount * 0.4) {
-        const theta = u * Math.PI * 2; const phi = Math.acos((v * 2) - 1); const rPlanet = 20;
-        targets.saturn.push({
-            x: rPlanet * Math.sin(phi) * Math.cos(theta),
-            y: rPlanet * Math.sin(phi) * Math.sin(theta),
-            z: rPlanet * Math.cos(phi)
-        });
+    // --- SATURNUS (Default) ---
+    if (i < particleCount * 0.3) {
+        const theta = u * Math.PI * 2; const phi = Math.acos((v * 2) - 1); const rPlanet = 18;
+        targets.saturn.push({ x: rPlanet * Math.sin(phi) * Math.cos(theta), y: rPlanet * Math.sin(phi) * Math.sin(theta), z: rPlanet * Math.cos(phi) });
     } else {
-        const thetaRing = u * Math.PI * 2;
-        const rRingInner = 28; const rRingOuter = 55;
-        const rRing = rRingInner + v * (rRingOuter - rRingInner);
-        const flatZ = rRing * Math.sin(thetaRing);
-        const flatY = (Math.random() - 0.5) * 1.5; 
-        const tilt = 0.35; // Kemiringan cincin
-        targets.saturn.push({
-            x: rRing * Math.cos(thetaRing),
-            y: flatY * Math.cos(tilt) - flatZ * Math.sin(tilt),
-            z: flatY * Math.sin(tilt) + flatZ * Math.cos(tilt)
-        });
+        const thetaRing = u * Math.PI * 2; const rRing = 26 + v * 30;
+        const tilt = 0.4;
+        const fy = (Math.random()-0.5)*1.5; const fz = rRing * Math.sin(thetaRing);
+        targets.saturn.push({ x: rRing * Math.cos(thetaRing), y: fy*Math.cos(tilt) - fz*Math.sin(tilt), z: fy*Math.sin(tilt) + fz*Math.cos(tilt) });
     }
     
-    // SCATTER
-    targets.scatter.push({ x: (Math.random() - 0.5) * 400, y: (Math.random() - 0.5) * 400, z: (Math.random() - 0.5) * 400 });
+    // --- SCATTER ---
+    targets.scatter.push({ x: (Math.random() - 0.5) * 450, y: (Math.random() - 0.5) * 450, z: (Math.random() - 0.5) * 450 });
     
-    // HEART (Bentuk Hati)
-    const tHeart = u * Math.PI * 2; const rHeart = 2.5 * Math.sqrt(v);
+    // --- HEART (Dual Hand) ---
+    const tH = u * Math.PI * 2; const rH = 2.5 * Math.sqrt(v);
     targets.heart.push({
-        x: rHeart * 16 * Math.pow(Math.sin(tHeart), 3),
-        y: rHeart * (13 * Math.cos(tHeart) - 5 * Math.cos(2*tHeart) - 2 * Math.cos(3*tHeart) - Math.cos(4*tHeart)),
+        x: rH * 16 * Math.pow(Math.sin(tH), 3),
+        y: rH * (13 * Math.cos(tH) - 5 * Math.cos(2*tH) - 2 * Math.cos(3*tH) - Math.cos(4*tH)),
         z: (Math.random() - 0.5) * 10
     });
-    
-    // MOON
-    const tMoon = (u * Math.PI) - Math.PI/2; const rMoon = 30 + (Math.random() * 5); const inR = 25 + (Math.random() * 5);
-    targets.moon.push({
-        x: Math.random() > 0.5 ? rMoon * Math.cos(tMoon) : inR * Math.cos(tMoon) + 15,
-        y: Math.random() > 0.5 ? rMoon * Math.sin(tMoon) : inR * Math.sin(tMoon),
-        z: (Math.random() - 0.5) * 5
-    });
-    
-    // JELLYFISH
-    if (Math.random() > 0.3) {
-        targets.jellyfish.push({ x: (Math.random() - 0.5) * 20, y: -Math.random() * 60, z: (Math.random() - 0.5) * 20 });
+
+    // --- CAT FACE (WAJAH KUCING - BARU) ---
+    // Menggantikan Bulan Sabit. Distribusi probabilitas untuk wajah dan telinga.
+    const catRand = Math.random();
+    if (catRand > 0.3) {
+        // Wajah (Elips agak pipih)
+        const tC = u * Math.PI * 2; const rC = 25 * Math.sqrt(v);
+        targets.cat.push({ x: rC * Math.cos(tC) * 1.2, y: rC * Math.sin(tC) * 0.9 - 5, z: (Math.random()-0.5)*5 });
     } else {
-        const tD = u * Math.PI * 2; const pD = (v * Math.PI) / 2; const rD = 20;
-        targets.jellyfish.push({ x: rD * Math.sin(pD) * Math.cos(tD), y: rD * Math.cos(pD), z: rD * Math.sin(pD) * Math.sin(tD) });
+        // Telinga (Dua segitiga di atas)
+        const side = Math.random() > 0.5 ? 1 : -1; // Kiri atau kanan
+        // Matematika segitiga sederhana: Basis di y=5, puncak di y=25
+        const earBaseX = 15 * side; const earTipX = 25 * side;
+        const tEar = Math.random();
+        const eX = (1-tEar)*earBaseX + tEar*earTipX + (Math.random()-0.5)*5;
+        const eY = (1-tEar)*5 + tEar*25 + (Math.random()-0.5)*2;
+        targets.cat.push({ x: eX, y: eY, z: (Math.random()-0.5)*5 });
+    }
+
+    
+    // --- BEAUTIFUL JELLYFISH (UBUR-UBUR CANTIK - DIPERBAIKI) ---
+    if (Math.random() > 0.35) {
+        // Tentakel Bergelombang (Heliks Sinusoidal)
+        const tId = Math.floor(Math.random() * 8); // 8 tentakel utama
+        const tAngle = (tId / 8) * Math.PI * 2 + (Math.random()*0.2);
+        const tY = -Math.random() * 70; // Panjang ke bawah
+        const wave = Math.sin(tY * 0.15 + tId); // Gelombang berdasarkan kedalaman Y
+        const tR = 15 + wave * 3; // Radius bervariasi
+        targets.jellyfish.push({ x: tR * Math.cos(tAngle), y: tY, z: tR * Math.sin(tAngle) });
+    } else {
+        // Kubah Lonceng (Bell Shape menggunakan Cosine)
+        const tD = u * Math.PI * 2; 
+        const pD = v * Math.PI / 2; // 0 sampai PI/2
+        const rDomeBase = 22;
+        // Bentuk lonceng: Radius mengecil secara kosinus saat Y naik
+        const currentR = rDomeBase * Math.cos(pD); 
+        const domeY = 25 * Math.sin(pD); // Tinggi kubah
+        targets.jellyfish.push({ x: currentR * Math.cos(tD), y: domeY, z: currentR * Math.sin(tD) });
     }
     
-    // TEXT
+    // --- CREATION OF ADAM (LUKISAN TANGAN - BARU) ---
+    // Menggantikan kecepatan cahaya. Prosedural dua lengan mendekat.
+    const isLeftArm = Math.random() > 0.5;
+    let aX, aY, aZ;
+    // Parameter Lengan (tabung dengan variasi)
+    const armLen = Math.random(); // Posisi sepanjang lengan (0 pangkal, 1 ujung jari)
+    const armRad = 4 * (1 - armLen*0.4); // Lengan makin kurus ke ujung
+    const armTheta = Math.random() * Math.PI * 2;
+
+    if (isLeftArm) {
+        // Lengan Kiri (Tuhan): Dari Kiri Atas (-70, 30) ke Tengah Kiri (-3, 2)
+        const startX = -70, startY = 35, endX = -4, endY = 2;
+        const baseX = startX + armLen * (endX - startX);
+        const baseY = startY + armLen * (endY - startY);
+        aX = baseX + armRad * Math.cos(armTheta);
+        aY = baseY + armRad * Math.sin(armTheta) * 0.5; // Agak pipih
+        aZ = armRad * Math.sin(armTheta);
+    } else {
+        // Lengan Kanan (Adam): Dari Kanan Bawah (70, -30) ke Tengah Kanan (3, -2)
+        const startX = 70, startY = -35, endX = 4, endY = -2;
+        const baseX = startX + armLen * (endX - startX);
+        const baseY = startY + armLen * (endY - startY);
+        aX = baseX + armRad * Math.cos(armTheta);
+        aY = baseY + armRad * Math.sin(armTheta) * 0.5;
+        aZ = armRad * Math.sin(armTheta);
+    }
+    targets.adam.push({ x: aX, y: aY, z: (Math.random()-0.5)*5 });
+
+
+    // --- TEXT & FIST ---
     const tp = textPoints[i % textPoints.length];
     targets.text.push({ x: tp.x + (Math.random()-0.5)*0.5, y: tp.y + (Math.random()-0.5)*0.5, z: tp.z });
+    targets.fist.push({ x: (Math.random() - 0.5) * 2, y: (Math.random() - 0.5) * 2, z: (Math.random() - 0.5) * 2 });
 
-    // FIST
-    targets.fist.push({ x: (Math.random() - 0.5) * 3, y: (Math.random() - 0.5) * 3, z: (Math.random() - 0.5) * 3 });
-
-    // Initial Pos (Saturnus)
+    // Set posisi awal
     currentPositions.push({ x: targets.saturn[i].x, y: targets.saturn[i].y, z: targets.saturn[i].z });
 }
 
 // ==========================================
-// 4. LOGIKA AI PRESISI (SINGLE & DUAL HANDS)
+// 4. LOGIKA AI & GESTURE RECOGNITION
 // ==========================================
 let activeShape = 'saturn'; 
 let handRotX = 0, handRotY = 0;
-let targetZoom = 120;
-let isLightspeed = false;
+let targetZoom = 130;
 
-// Fungsi Jarak Euclidean standar
 function getDist(p1, p2) {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
 }
 
 const videoElement = document.getElementById('webcam_video');
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-
-// PERUBAHAN PENTING: maxNumHands diubah menjadi 2
 hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
 
 hands.onResults((results) => {
-    // Reset state per frame
     let shapeFound = 'saturn';
-    isLightspeed = false;
-    let controllingHand = null; // Tangan utama yang mengontrol kamera
-
+    let controllingHand = null;
     const landmarks = results.multiHandLandmarks;
 
-    // --- LOGIKA DUA TANGAN (Prioritas Utama: Heart Hands) ---
+    // --- LOGIKA DUA TANGAN (Heart Hands) ---
     if (landmarks && landmarks.length === 2) {
-        const hand1 = landmarks[0];
-        const hand2 = landmarks[1];
-
-        // Landmark 8 adalah ujung telunjuk, Landmark 4 adalah ujung jempol
-        // Hitung jarak antara ujung telunjuk tangan 1 dan ujung telunjuk tangan 2
-        const indexTipsDist = getDist(hand1[8], hand2[8]);
-        // Hitung jarak antara ujung jempol tangan 1 dan ujung jempol tangan 2
-        const thumbTipsDist = getDist(hand1[4], hand2[4]);
-
-        // Toleransi jarak 0.08 (sekitar 8% dari lebar frame) dianggap bersentuhan
-        if (indexTipsDist < 0.08 && thumbTipsDist < 0.08) {
+        const hand1 = landmarks[0]; const hand2 = landmarks[1];
+        if (getDist(hand1[8], hand2[8]) < 0.08 && getDist(hand1[4], hand2[4]) < 0.08) {
             shapeFound = 'heart';
-            // Jika membentuk hati, kunci rotasi kamera agar bentuk hati terlihat jelas
             handRotX = 0; handRotY = 0; 
-        } else {
-            // Jika 2 tangan tapi tidak membentuk hati, gunakan tangan pertama untuk kontrol kamera
-            controllingHand = hand1;
-        }
-    } 
-    // --- LOGIKA SATU TANGAN (Jika Heart Hands tidak terdeteksi) ---
-    else if (landmarks && landmarks.length === 1) {
+        } else { controllingHand = hand1; }
+    } else if (landmarks && landmarks.length === 1) {
         controllingHand = landmarks[0];
     }
 
-    // Proses Gestur Satu Tangan jika ada controllingHand
+    // --- LOGIKA SATU TANGAN ---
     if (controllingHand && shapeFound === 'saturn') {
         const lm = controllingHand;
-        
-        // Transformasi Kamera
-        const centerX = (lm[0].x + lm[9].x) / 2;
-        const centerY = (lm[0].y + lm[9].y) / 2;
-        handRotY = (centerX - 0.5) * Math.PI; 
-        handRotX = (centerY - 0.5) * Math.PI;
-
+        const centerX = (lm[0].x + lm[9].x) / 2; const centerY = (lm[0].y + lm[9].y) / 2;
+        handRotY = (centerX - 0.5) * Math.PI; handRotX = (centerY - 0.5) * Math.PI;
         const handWidth = getDist(lm[5], lm[17]); 
-        targetZoom = Math.max(40, Math.min(250, 18 / (handWidth * 100))); 
+        targetZoom = Math.max(50, Math.min(250, 20 / (handWidth * 100))); 
 
-        // Analisis Jari (Euclidean Distance dari pergelangan)
-        const dWrist = lm[0];
-        const isIndexExt = getDist(lm[8], dWrist) > getDist(lm[5], dWrist);
-        const isMiddleExt = getDist(lm[12], dWrist) > getDist(lm[9], dWrist);
-        const isRingExt = getDist(lm[16], dWrist) > getDist(lm[13], dWrist);
-        const isPinkyExt = getDist(lm[20], dWrist) > getDist(lm[17], dWrist);
-        
-        const thumbIndexDist = getDist(lm[4], lm[8]);
-        const isThumbIndexTouching = thumbIndexDist < 0.05; 
-        const isThumbExt = getDist(lm[4], lm[5]) > 0.1; 
+        const dW = lm[0];
+        const isIndexExt = getDist(lm[8], dW) > getDist(lm[5], dW);
+        const isMiddleExt = getDist(lm[12], dW) > getDist(lm[9], dW);
+        const isRingExt = getDist(lm[16], dW) > getDist(lm[13], dW);
+        const isPinkyExt = getDist(lm[20], dW) > getDist(lm[17], dW);
+        const isThumbIndexTouching = getDist(lm[4], lm[8]) < 0.05; 
+        const isThumbExt = getDist(lm[4], lm[5]) > 0.08; 
 
-        // Evaluasi Gestur Satu Tangan
-        // (Catatan: Gesture 'heart' satu tangan (finger heart) dihapus agar tidak bentrok)
+        // Pemetaan Gestur Baru
         if (isThumbIndexTouching && isMiddleExt && isRingExt && isPinkyExt) {
-            shapeFound = 'jellyfish'; // OK Sign
+            shapeFound = 'jellyfish'; // OK Sign -> Ubur-ubur Cantik
         } else if (!isThumbExt && !isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt) {
-            shapeFound = 'fist'; // Menggenggam
+            shapeFound = 'fist'; // Genggam
         } else if (isIndexExt && isMiddleExt && isRingExt && isPinkyExt) {
             shapeFound = 'scatter'; // Mekar
         } else if (isIndexExt && isMiddleExt && !isRingExt && !isPinkyExt) {
             shapeFound = 'text'; // Peace Sign
         } else if (isIndexExt && !isMiddleExt && !isRingExt && isPinkyExt) {
-            shapeFound = 'moon'; // Horns Sign
+            shapeFound = 'cat'; // Horns Sign -> Wajah Kucing (Baru)
         } else if (isThumbExt && !isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt) {
-             // Thumbs Up (Vertikal)
-            if (lm[4].y < lm[3].y && lm[3].y < lm[2].y) {
-                isLightspeed = true; 
-            }
+             // Thumbs Up -> Creation of Adam (Baru, Statis)
+            if (lm[4].y < lm[3].y) { shapeFound = 'adam'; }
         }
     } else if (!controllingHand && shapeFound === 'saturn') {
-        // Tidak ada tangan sama sekali
-        targetZoom = 120;
-        handRotX = 0; handRotY = 0;
+        targetZoom = 130; handRotX = 0; handRotY = 0;
     }
-
     activeShape = shapeFound;
 });
 
@@ -245,57 +247,50 @@ const cameraUtil = new Camera(videoElement, { onFrame: async () => { await hands
 cameraUtil.start();
 
 // ==========================================
-// 5. ANIMASI MATRIKS 3D SEJATI
+// 5. ANIMASI MATRIKS 3D
 // ==========================================
 function animate() {
     requestAnimationFrame(animate);
-
     camera.lookAt(scene.position);
 
-    // Transisi Kamera
+    // Transisi Kamera & Rotasi
     camera.position.z += (targetZoom - camera.position.z) * 0.05;
-    instancedMesh.rotation.x += (handRotX - instancedMesh.rotation.x) * 0.05;
-    instancedMesh.rotation.y += (handRotY - instancedMesh.rotation.y) * 0.05;
-
-    // Rotasi dasar ke kanan (clockwise) jika tidak dikontrol tangan
-    // Nilai negatif pada sumbu Y = rotasi ke kanan
-    if (handRotY === 0 && activeShape !== 'heart') {
-        instancedMesh.rotation.y -= 0.003;
+    // Jika bentuk Adam atau Hati, kunci rotasi agar bentuknya jelas
+    if (activeShape !== 'adam' && activeShape !== 'heart') {
+        instancedMesh.rotation.x += (handRotX - instancedMesh.rotation.x) * 0.05;
+        instancedMesh.rotation.y += (handRotY - instancedMesh.rotation.y) * 0.05;
+        if (handRotY === 0) instancedMesh.rotation.y -= 0.003; // Auto rotate kanan
+    } else {
+        // Reset rotasi pelan-pelan ke depan untuk bentuk statis
+        instancedMesh.rotation.x += (0 - instancedMesh.rotation.x) * 0.05;
+        instancedMesh.rotation.y += (0 - instancedMesh.rotation.y) * 0.05;
     }
 
     const targetArr = targets[activeShape];
+    const time = Date.now() * 0.002; // Waktu untuk animasi ubur-ubur
 
     for (let i = 0; i < particleCount; i++) {
         let cur = currentPositions[i];
         let tar = targetArr[i];
-
-        if (isLightspeed) {
-            cur.z += 15;
-            if (cur.z > 200) {
-                cur.x = (Math.random() - 0.5) * 400; cur.y = (Math.random() - 0.5) * 400; cur.z = -200 - (Math.random() * 200);
-            }
-        } else {
-            let tX = tar.x, tY = tar.y, tZ = tar.z;
+        let tX = tar.x, tY = tar.y, tZ = tar.z;
             
-            if (activeShape === 'jellyfish') {
-                const time = Date.now() * 0.003;
-                if (tY >= 0) {
-                    tX += Math.sin(time) * 2; tZ += Math.cos(time) * 2;
-                } else {
-                    tX += Math.sin(time + tY * 0.1) * 3;
-                }
-            }
-
-            cur.x += (tX - cur.x) * 0.05;
-            cur.y += (tY - cur.y) * 0.05;
-            cur.z += (tZ - cur.z) * 0.05;
+        // Animasi tambahan hanya untuk ubur-ubur
+        if (activeShape === 'jellyfish') {
+            // Kubah bernapas pelan
+            if (tY > 0) { tX += Math.sin(time)*0.5; tZ += Math.cos(time)*0.5; }
+            // Tentakel berayun sinusoidal
+            else { tX += Math.sin(time + tY*0.05)*2; }
         }
+
+        // Interpolasi posisi (Morphing)
+        cur.x += (tX - cur.x) * 0.06;
+        cur.y += (tY - cur.y) * 0.06;
+        cur.z += (tZ - cur.z) * 0.06;
 
         dummy.position.set(cur.x, cur.y, cur.z);
         dummy.updateMatrix();
         instancedMesh.setMatrixAt(i, dummy.matrix);
     }
-    
     instancedMesh.instanceMatrix.needsUpdate = true;
     renderer.render(scene, camera);
 }
@@ -305,5 +300,4 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix(); 
     renderer.setSize(window.innerWidth, window.innerHeight); 
 });
-
 animate();
